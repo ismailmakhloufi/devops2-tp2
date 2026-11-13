@@ -12,12 +12,13 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    # Pas de "ports" : la base n'est joignable que depuis les autres conteneurs
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - backend
 
   # ---------------- Administration de la base ----------------
   pgadmin:
@@ -36,6 +37,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - backend
 
   # ---------------- CMS headless (API) ----------------
   strapi:
@@ -70,21 +73,32 @@ services:
       timeout: 5s
       retries: 12
       start_period: 30s
-    # ---------------- Front-end ----------------
+    networks:
+      - backend
+      - frontend
+
+  # ---------------- Front-end ----------------
   frontend:
     build: ./frontend
     image: tp2/frontend:latest
     restart: unless-stopped
     environment:
-      # Communication entre conteneurs
       STRAPI_URL: http://strapi:1337
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
       strapi:
         condition: service_healthy
+    networks:
+      - frontend
 
+# ---------------- Volumes ----------------
 volumes:
   pgdata:
   pgadmin-data:
   strapi-uploads:
+
+# ---------------- Réseaux ----------------
+networks:
+  backend:
+  frontend:
